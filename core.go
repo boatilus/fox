@@ -62,6 +62,61 @@ func (qt qualityType) String() string {
 	}
 }
 
+type statusType int
+
+const (
+	// StatusQueued indicates that the fax is queued, waiting for processing.
+	StatusQueued statusType = iota
+	// StatusProcessing indicates that the fax is being downloaded, uploaded, or transcoded into a
+	// different format.
+	StatusProcessing
+	// StatusSending indicates that the fax is in the process of being sent.
+	StatusSending
+	// StatusDelivered indicates that he fax has been successfuly delivered.
+	StatusDelivered
+	// StatusReceiving indicates that the fax is in the process of being received.
+	StatusReceiving
+	// StatusReceived indicates that the fax has been successfully received.
+	StatusReceived
+	// StatusNoAnswer indicates that the outbound fax failed because the other end did not pick up.
+	StatusNoAnswer
+	// StatusBusy indicates that the outbound fax failed because the other side sent back a busy
+	// signal.
+	StatusBusy
+	// StatusFailed indicates that the fax failed to send or receive.
+	StatusFailed
+	// StatusCanceled indicates that the fax was canceled, either by using the REST API, or rejected
+	// by TwiML.
+	StatusCanceled
+)
+
+func (st statusType) String() string {
+	switch st {
+	default:
+		return ""
+	case StatusQueued:
+		return "queued"
+	case StatusProcessing:
+		return "processing"
+	case StatusSending:
+		return "sending"
+	case StatusDelivered:
+		return "delivered"
+	case StatusReceiving:
+		return "receiving"
+	case StatusReceived:
+		return "received"
+	case StatusNoAnswer:
+		return "no-answer"
+	case StatusBusy:
+		return "busy"
+	case StatusFailed:
+		return "failed"
+	case StatusCanceled:
+		return "canceled"
+	}
+}
+
 // SendOpts describes the options to use when sending a faxes.
 type SendOpts struct {
 	// From is phone number to use as the caller id, E.164-formatted. If using a phone number, it must
@@ -106,8 +161,11 @@ func (so *SendOpts) urlEncode(data url.Values) {
 
 // ErrorResponse describes the error response returned from sending a fax.
 type ErrorResponse struct {
-	Code     int    `json:"code"`
-	Message  string `json:"message"`
+	// Code is the unique Twilio error code.
+	Code int `json:"code"`
+	// Message is a descriptive error message.
+	Message string `json:"message"`
+	// MoreInfo is a link to the Twilio documentation for the error code.
 	MoreInfo string `json:"more_info"`
 	// Status is the HTTP status code for this error.
 	Status int `json:"status"`
