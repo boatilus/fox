@@ -3,6 +3,7 @@ package fox
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -103,23 +104,32 @@ func (so *SendOpts) urlEncode(data url.Values) {
 	}
 }
 
-// SendResponse describes the response returned from sending a fax.
+// ErrorResponse describes the error response returned from sending a fax.
+type ErrorResponse struct {
+	Code     int    `json:"code"`
+	Message  string `json:"message"`
+	MoreInfo string `json:"more_info"`
+	// Status is the HTTP status code for this error.
+	Status int `json:"status"`
+}
+
+// SendResponse describes the success response returned from sending a fax.
 type SendResponse struct {
-	// AccountSid	is the account from which the fax was sent.
+	// AccountSid	is the unique SID identifier of the account from which the fax was sent.
 	AccountSid string `json:"account_sid"`
 	// APIVersion is the API version used to send the fax, which is always "v1".
 	APIVersion string `json:"api_version"`
 	// Status is the current status of the fax transmission (typically "queued").
 	Status string `json:"status"`
-	// SID is the Twilio SID for the created fax.
+	// SID is the 34-character string that uniquely identifies this fax.
 	SID string `json:"sid"`
 	// URL is the fully-qualified reference URL to the fax resource.
 	URL string `json:"url"`
-	// Direction is always "outbound".
+	// Direction is the transmission direction of this fax. Always "outbound".
 	Direction string `json:"direction"`
 	// To	is the phone number or SIP URI of the destination.
 	To string `json:"to"`
-	// From is the caller ID or SIP.
+	// From is the number the fax was sent from, in E.164 format, or the SIP From display name.
 	From string `json:"from"`
 	// Quality is one of "standard", "fine" or "superfine".
 	Quality string `json:"quality"`
@@ -127,17 +137,19 @@ type SendResponse struct {
 	DateCreated time.Time `json:"date_created"`
 	// DateUpdated is the timestamp at which the fax resource was updated.
 	DateUpdated time.Time `json:"date_updated"`
-	Links       struct {
+	// Links is a dictionary of URL links to nested resources of this fax.
+	Links struct {
 		// Media is a fully-qualified reference URL to the fax media resource.
 		Media string `json:"media"`
 	} `json:"links"`
-	// The following fields are present in the response from Twilio, but always null:
 	// MediaSid string `json:"media_sid"`
-	// PriceUnit string `json:"price_unit"``
-	// Price string `json:"price"`
-	// Duration int `json:"duration"`
-	// NumPages int `json:"num_pages"`
-	// MediaURL string `json:"media_url"`
+	// PriceUnit is the currency unit of the Price. E.g., "USD".
+	PriceUnit string `json:"price_unit"`
+	Price     string `json:"price"`
+	// Duration is the time taken to transmit the fax, in seconds.
+	Duration int    `json:"duration"`
+	NumPages int    `json:"num_pages"`
+	MediaURL string `json:"media_url"`
 }
 
 // StatusCallback describes the data received from calling a status callback.
@@ -183,12 +195,46 @@ func init() {
 	}
 }
 
-// Send initiates a fax to the specified number.
+// Get retrieves the data for a single fax instance.
+func Get(sid string) (*SendResponse, error) {
+	if AccountSID == "" || AuthToken == "" {
+		return nil, ErrNotAuthenticated
+	}
+	if sid == "" {
+		return nil, errors.New("fox: SID is required")
+	}
+
+	u := url.URL{}
+	u.Scheme = scheme
+	u.Host = host
+	u.Path = fmt.Sprintf("%s/%s/%s", version, endpoint, sid)
+
+	r, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	r.SetBasicAuth(AccountSID, AuthToken)
+
+	body, err := runReqAndParseBody(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var sr SendResponse
+	if err := json.Unmarshal(body, &sr); err != nil {
+		return nil, err
+	}
+
+	return &sr, nil
+}
+
+// Send initiates a fax to the specified number. It returns the response received from Twilio, or
+// an error.
 func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
 	if AccountSID == "" || AuthToken == "" {
 		return nil, ErrNotAuthenticated
 	}
-
 	if opts == nil {
 		opts = DefaultSendOpts
 	}
@@ -212,6 +258,20 @@ func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
 	r.SetBasicAuth(AccountSID, AuthToken)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
+	body, err := runReqAndParseBody(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var sr SendResponse
+	if err := json.Unmarshal(body, &sr); err != nil {
+		return nil, err
+	}
+
+	return &sr, nil
+}
+
+func runReqAndParseBody(r *http.Request) ([]byte, error) {
 	res, err := client.Do(r)
 	if err != nil {
 		return nil, err
@@ -223,14 +283,14 @@ func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
 		return nil, err
 	}
 
-	if res.StatusCode != http.StatusCreated {
-		// do the error thing.
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		var errRes ErrorResponse
+		if err := json.Unmarshal(body, &errRes); err != nil {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("fox: %s error (%v): %s", r.Method, errRes.Code, errRes.Message)
 	}
 
-	var sr SendResponse
-	if err := json.Unmarshal(body, &sr); err != nil {
-		return nil, err
-	}
-
-	return &sr, nil
+	return body, nil
 }

@@ -16,8 +16,14 @@ func init() {
 	from = os.Getenv("FROM")
 }
 
+func TestGet(t *testing.T) {
+	got, err := Get("FX46b216dea50b3ee395fd534cc6349f5c")
+	assert.NoError(t, err)
+	t.Logf("%#v", got)
+}
+
 func TestSend(t *testing.T) {
-	res, err := Send(
+	got, err := Send(
 		to,
 		from,
 		"http://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf",
@@ -25,5 +31,5 @@ func TestSend(t *testing.T) {
 	)
 
 	assert.NoError(t, err)
-	t.Logf("%#v", res)
+	assert.Equal(t, got.Status, "queued")
 }
