@@ -2,14 +2,9 @@
 package fox
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -19,21 +14,6 @@ const (
 	version  = "v1" // pins this package to API v1
 	endpoint = "Faxes"
 )
-
-// DefaultTimeoutDuration is the default length of time to wait for an HTTP request to finish before
-// timing out.
-const DefaultTimeoutDuration = 10 * time.Second
-
-// AccountSID is the Twilio account SID, and should be set prior to calling any methods.
-var AccountSID string
-
-// AuthToken is the Twilio auth token, and should be set prior to calling any methods.
-var AuthToken string
-
-// TimeoutDuration is the length of time to wait for an HTTP request to finish before timing out.
-var TimeoutDuration = DefaultTimeoutDuration
-
-var client http.Client
 
 type qualityType int
 
@@ -119,47 +99,52 @@ func (st statusType) String() string {
 
 // SendOpts describes the options to use when sending a fax.
 type SendOpts struct {
-	// From is phone number to use as the caller ID, E.164-formatted. If using a phone number, it must
-	// be a Twilio number or a verified outgoing caller ID for your account. If sending to a SIP
-	// address, this can be any alphanumeric string (plus the characters +, _, ., and -) to use in the
-	// "From" header of the SIP request.
-	// From string
 	// Quality is a quality value, one of QualityStandard, QualityFine or QualitySuperfine.
 	Quality qualityType
-	// SipAuthPassword is the password to use for authentication when sending to a SIP address.
-	SipAuthPassword string
-	// SipAuthUsername is the username to use for authentication when sending to a SIP address.
-	SipAuthUsername string
+	// SIPAuthPassword is the password to use for authentication when sending to a SIP address.
+	SIPAuthPassword string
+	// SIPAuthUsername is the username to use for authentication when sending to a SIP address.
+	SIPAuthUsername string
 	// StatusCallback is a status callback URL that will receive a GET or POST request when the status
 	// of the fax changes.
 	StatusCallback string
 	// StoreMedia specifies whether or not to store a copy of the sent media on Twilio's servers for
 	// later retrieval.
 	StoreMedia bool
-	// TTL is the duration from when a fax was initiated should Twilio attempt to send the fax.
-	// Twilio observes only the minutes length component of the duration.
-	TTL time.Duration
+	// TTLMinutes is the duration, in minutes, from when a fax was initiated should Twilio attempt to
+	// send the fax.
+	TTLMinutes int
 }
 
+// urlEncode adds SendOpts fields to a url.Values map using standard param=value URL encoding.
 func (so *SendOpts) urlEncode(data url.Values) {
-	//data.Add("From", so.From)
 	data.Add("Quality", so.Quality.String())
-	data.Add("SipAuthPassword", so.SipAuthPassword)
-	data.Add("SipAuthUsername", so.SipAuthUsername)
 
+	if so.SIPAuthPassword != "" {
+		data.Add("SipAuthPassword", so.SIPAuthPassword)
+	}
+	if so.SIPAuthUsername != "" {
+		data.Add("SipAuthUsername", so.SIPAuthUsername)
+	}
 	if so.StatusCallback != "" {
 		data.Add("StatusCallback", so.StatusCallback)
 	}
 
 	data.Add("StoreMedia", strconv.FormatBool(so.StoreMedia))
 
-	if so.TTL.Minutes() > 0.0 {
-		minutes := so.TTL.Nanoseconds() * int64(1000000000)
-		data.Add("Ttl", strconv.FormatInt(minutes, 10))
+	if so.TTLMinutes > 0 {
+		data.Add("Ttl", strconv.FormatInt(int64(so.TTLMinutes), 10))
 	}
 }
 
-// ErrorResponse describes the error response returned from sending a fax.
+// DefaultSendOpts is the default set of options to use for Client.Send. It mirrors the defaults
+// specified by Twilio.
+var DefaultSendOpts = &SendOpts{
+	Quality:    QualityFine,
+	StoreMedia: true,
+}
+
+// ErrorResponse describes Twilio's error response.
 type ErrorResponse struct {
 	// Code is the unique Twilio error code.
 	Code int `json:"code"`
@@ -169,6 +154,11 @@ type ErrorResponse struct {
 	MoreInfo string `json:"more_info"`
 	// Status is the HTTP status code for this error.
 	Status int `json:"status"`
+}
+
+// Error satisfies the error interface.
+func (err *ErrorResponse) Error() string {
+	return fmt.Sprintf("fox: error %v (Twilio error %v): %s", err.Status, err.Code, err.Message)
 }
 
 // SendResponse describes the success response returned from sending a fax.
@@ -210,8 +200,8 @@ type SendResponse struct {
 	MediaURL string `json:"media_url"`
 }
 
-// StatusCallback describes the data received from calling a status callback.
-type StatusCallback struct {
+// StatusCallbackResponse describes the response received from calling a status callback.
+type StatusCallbackResponse struct {
 	// FaxSid is the 34-character unique identifier for the fax.
 	FaxSid string
 	// AccountSid	is the account from which the fax was sent.
@@ -239,116 +229,4 @@ type StatusCallback struct {
 	ErrorCode int
 	// ErrorMessage is a detailed message describing a failure, if any.
 	ErrorMessage string
-}
-
-// DefaultSendOpts is the default set of options to use in Send.
-var DefaultSendOpts = &SendOpts{
-	Quality:    QualityFine,
-	StoreMedia: true,
-}
-
-func init() {
-	client = http.Client{
-		Timeout: TimeoutDuration,
-	}
-}
-
-// Get retrieves the data for a single fax instance.
-func Get(sid string) (*SendResponse, error) {
-	if AccountSID == "" || AuthToken == "" {
-		return nil, ErrNotAuthenticated
-	}
-	if sid == "" {
-		return nil, errors.New("fox: SID is required")
-	}
-
-	u := url.URL{}
-	u.Scheme = scheme
-	u.Host = host
-	u.Path = fmt.Sprintf("%s/%s/%s", version, endpoint, sid)
-
-	r, err := http.NewRequest(http.MethodPost, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	r.SetBasicAuth(AccountSID, AuthToken)
-
-	body, err := runReqAndParseBody(r)
-	if err != nil {
-		return nil, err
-	}
-
-	var sr SendResponse
-	if err := json.Unmarshal(body, &sr); err != nil {
-		return nil, err
-	}
-
-	return &sr, nil
-}
-
-// Send initiates a fax to the specified number. It returns the response received from Twilio, or
-// an error.
-func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
-	if AccountSID == "" || AuthToken == "" {
-		return nil, ErrNotAuthenticated
-	}
-	if opts == nil {
-		opts = DefaultSendOpts
-	}
-
-	u := url.URL{}
-	u.Scheme = scheme
-	u.Host = host
-	u.Path = fmt.Sprintf("%s/%s", version, endpoint)
-
-	data := url.Values{}
-	data.Add("To", to)
-	data.Add("From", from)
-	data.Add("MediaUrl", mediaURL)
-	opts.urlEncode(data)
-
-	r, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	r.SetBasicAuth(AccountSID, AuthToken)
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
-
-	body, err := runReqAndParseBody(r)
-	if err != nil {
-		return nil, err
-	}
-
-	var sr SendResponse
-	if err := json.Unmarshal(body, &sr); err != nil {
-		return nil, err
-	}
-
-	return &sr, nil
-}
-
-func runReqAndParseBody(r *http.Request) ([]byte, error) {
-	res, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
-		var errRes ErrorResponse
-		if err := json.Unmarshal(body, &errRes); err != nil {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("fox: %s error (%v): %s", r.Method, errRes.Code, errRes.Message)
-	}
-
-	return body, nil
 }
