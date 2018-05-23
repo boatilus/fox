@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -205,8 +204,6 @@ func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
 	data.Add("MediaUrl", mediaURL)
 	opts.urlEncode(data)
 
-	log.Printf("URL data: %s", data.Encode())
-
 	r, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
@@ -225,8 +222,6 @@ func Send(to, from, mediaURL string, opts *SendOpts) (*SendResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	log.Print(string(body))
 
 	if res.StatusCode != http.StatusCreated {
 		// do the error thing.
