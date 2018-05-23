@@ -117,12 +117,12 @@ func (st statusType) String() string {
 	}
 }
 
-// SendOpts describes the options to use when sending a faxes.
+// SendOpts describes the options to use when sending a fax.
 type SendOpts struct {
-	// From is phone number to use as the caller id, E.164-formatted. If using a phone number, it must
-	// be a Twilio number or a verified outgoing caller id for your account. If sending to a SIP
+	// From is phone number to use as the caller ID, E.164-formatted. If using a phone number, it must
+	// be a Twilio number or a verified outgoing caller ID for your account. If sending to a SIP
 	// address, this can be any alphanumeric string (plus the characters +, _, ., and -) to use in the
-	// From header of the SIP request.
+	// "From" header of the SIP request.
 	// From string
 	// Quality is a quality value, one of QualityStandard, QualityFine or QualitySuperfine.
 	Quality qualityType
@@ -130,8 +130,8 @@ type SendOpts struct {
 	SipAuthPassword string
 	// SipAuthUsername is the username to use for authentication when sending to a SIP address.
 	SipAuthUsername string
-	// StatusCallback is a status callback URL that will receive a POST when the status of the fax
-	// changes.
+	// StatusCallback is a status callback URL that will receive a GET or POST request when the status
+	// of the fax changes.
 	StatusCallback string
 	// StoreMedia specifies whether or not to store a copy of the sent media on Twilio's servers for
 	// later retrieval.
