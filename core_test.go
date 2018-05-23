@@ -8,17 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const faxSID = "FX46b216dea50b3ee395fd534cc6349f5c"
-
-const errorResponseJSON = `{
-	"code": 1228,
-	"message": "Twilio error message",
-	"more_info": "https://url/to/more/info",
-	"status": 404
-}`
-
-const successReponseJSON = `{}`
-
 func TestErrorResponse_Error(t *testing.T) {
 	in := ErrorResponse{
 		Code:    12228,

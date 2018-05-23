@@ -8,9 +8,12 @@ import (
 	"time"
 )
 
+var (
+	scheme = "https" // the API is always accessed over HTTPS
+	host   = "fax.twilio.com"
+)
+
 const (
-	scheme   = "https" // the API is always accessed over HTTPS
-	host     = "fax.twilio.com"
 	version  = "v1" // pins this package to API v1
 	endpoint = "Faxes"
 )

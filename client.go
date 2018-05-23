@@ -59,7 +59,7 @@ func (c *Client) Get(sid string) (*SendResponse, error) {
 
 	u := c.buildURL(sid)
 
-	r, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	r, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
