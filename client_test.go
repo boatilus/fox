@@ -155,7 +155,7 @@ func TestClient_Get(t *testing.T) {
 				"price_unit": null,
 				"quality": "fine",
 				"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"status": "queued",
+				"status": "delivered",
 				"to": "+15558675310",
 				"duration": null,
 				"links": {
@@ -174,7 +174,7 @@ func TestClient_Get(t *testing.T) {
 			t.FailNow()
 		}
 
-		assert.Equal("queued", got.Status)
+		assert.Equal("delivered", got.Status)
 		assert.Equal("fine", got.Quality)
 	})
 
@@ -191,12 +191,42 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_Send(t *testing.T) {
-	got, err := c.Send(
-		to,
-		from,
-		"http://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf",
-	)
+	assert := assert.New(t)
 
-	assert.NoError(t, err)
-	assert.Equal(t, got.Status, "queued")
+	t.Run("OK", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(`{
+				"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+				"api_version": "v1",
+				"date_created": "2015-07-30T20:00:00Z",
+				"date_updated": "2015-07-30T20:00:00Z",
+				"direction": "outbound",
+				"from": "+15017122661",
+				"media_url": "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf",
+				"media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+				"num_pages": null,
+				"price": null,
+				"price_unit": null,
+				"quality": "fine",
+				"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+				"status": "queued",
+				"to": "+15558675310",
+				"duration": null,
+				"links": {
+					"media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
+				},
+				"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+			}`))
+		}))
+		defer server.Close()
+
+		got, err := c.Send(
+			to,
+			from,
+			"http://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf",
+		)
+
+		assert.NoError(err)
+		assert.Equal(got.Status, "queued")
+	})
 }
