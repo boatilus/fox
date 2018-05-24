@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"goji.io"
-	"goji.io/pat"
 )
 
 var (
@@ -31,8 +29,6 @@ const errorResponseJSON = `{
 var to, from string
 
 var c *Client
-var mux = goji.NewMux()
-var server *httptest.Server
 
 func init() {
 	to = os.Getenv("TO")
@@ -46,19 +42,17 @@ func init() {
 	if envSID != "" && envToken != "" {
 		accountSID = envSID
 		authToken = envToken
-
-		c = NewClient(accountSID, authToken)
-		return
 	}
 
-	server = httptest.NewServer(mux)
-	parsedURL, err := url.Parse(server.URL)
-	if err != nil {
-		panic(err)
-	}
+	c = NewClient(accountSID, authToken)
+}
 
-	scheme = parsedURL.Scheme
-	host = parsedURL.Host
+func makeServer(h http.HandlerFunc) *httptest.Server {
+	server := httptest.NewServer(h)
+
+	u, _ := url.Parse(server.URL)
+	scheme = u.Scheme
+	host = u.Host
 
 	transport := &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
@@ -66,8 +60,8 @@ func init() {
 		},
 	}
 
-	c = NewClient(accountSID, authToken)
 	c.HTTPClient = &http.Client{Transport: transport}
+	return server
 }
 
 func TestNewClient(t *testing.T) {
@@ -112,11 +106,16 @@ func TestClient_do(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("OK", func(t *testing.T) {
-		mux.HandleFunc(pat.Get("/get-success"), func(w http.ResponseWriter, _ *http.Request) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Write([]byte("OK"))
-		})
+		}))
+		defer server.Close()
 
 		r, err := http.NewRequest(http.MethodGet, server.URL+"/get-success", nil)
+		if err != nil {
+			t.Error(err)
+			t.FailNow()
+		}
 
 		got, err := c.do(r)
 		assert.NoError(err)
@@ -124,10 +123,11 @@ func TestClient_do(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mux.HandleFunc(pat.Get("/get-error"), func(w http.ResponseWriter, _ *http.Request) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(errorResponseJSON))
-		})
+			w.Write([]byte("ERROR"))
+		}))
+		defer server.Close()
 
 		r, err := http.NewRequest(http.MethodGet, server.URL+"/get-error", nil)
 
@@ -140,7 +140,7 @@ func TestClient_Get(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("OK", func(t *testing.T) {
-		mux.HandleFunc(pat.Get("/v1/Faxes/*"), func(w http.ResponseWriter, _ *http.Request) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Write([]byte(`{
 				"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
 				"api_version": "v1",
@@ -163,19 +163,27 @@ func TestClient_Get(t *testing.T) {
 				},
 				"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 			}`))
-		})
+		}))
+		defer server.Close()
 
 		got, err := c.Get(faxSID)
 		assert.NoError(err)
+
+		if got == nil {
+			t.Error("got is nil")
+			t.FailNow()
+		}
+
 		assert.Equal("queued", got.Status)
 		assert.Equal("fine", got.Quality)
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mux.HandleFunc(pat.Get("/v1/Faxes/*"), func(w http.ResponseWriter, _ *http.Request) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(errorResponseJSON))
-		})
+		}))
+		defer server.Close()
 
 		_, err := c.Get(faxSID)
 		assert.Error(err)
