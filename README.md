@@ -1,5 +1,5 @@
 # fox
-[![Go Report Card](https://goreportcard.com/badge/github.com/boatilus/fox)](https://goreportcard.com/report/github.com/boatilus/fox) [![GoDoc](https://godoc.org/github.com/boatilus/fox?status.svg)](https://godoc.org/github.com/boatilus/fox)
+[![Build Status](https://travis-ci.com/boatilus/fox.svg?branch=master)](https://travis-ci.com/boatilus/fox) [![Go Report Card](https://goreportcard.com/badge/github.com/boatilus/fox)](https://goreportcard.com/report/github.com/boatilus/fox) [![GoDoc](https://godoc.org/github.com/boatilus/fox?status.svg)](https://godoc.org/github.com/boatilus/fox)
 
 A simple, dependency-free Go client for the Twilio programmatic fax API.
 
@@ -36,7 +36,7 @@ res, _ := c.Get("FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 - ❌ List all fax media resources in an account
 
 ## Running tests
-First, grab the [testify](https://github.com/stretchr/testify) package:
+First, grab the [testify package](https://github.com/stretchr/testify):
 
     go get -u github.com/stretchr/testify
   
