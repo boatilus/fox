@@ -18,8 +18,7 @@ opts := SendOpts{StoreMedia: false}
 c := fox.NewClient("YOUR_TWILIO_ACCOUNT_SID", "YOUR_TWILIO_AUTH_TOKEN", &opts)
 ```
 
-The `Cancel`, `Get`, `List` and `Send` methods on the returned `Client` are used to make the API calls as described
-by Twilio's API reference. For example, to retrieve a fax's data by its SID:
+The `Cancel`, `Delete`, `Get`, `List` and `Send` methods on the returned `Client` are used to make the API calls as described by Twilio's API reference. For example, to retrieve a fax's data by its SID:
 
 ```go
 res, _ := c.Get("FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
@@ -30,7 +29,7 @@ res, _ := c.Get("FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 - ✅ List all faxes instances in an account
 - ✅ Send a fax
 - ✅ Cancel (update) a fax by its SID
-- ❌ Delete a fax instance by its SID
+- ✅ Delete a fax instance by its SID
 - ❌ Get a fax's media resource by its SID
 - ❌ List all fax media resources in an account
 
