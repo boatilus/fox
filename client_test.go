@@ -19,6 +19,29 @@ var (
 	faxMediaURL = "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf"
 )
 
+const deleteResponseJSON = `{
+  "account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "api_version": "v1",
+  "date_created": "2015-07-30T20:00:00Z",
+  "date_updated": "2015-07-30T20:00:00Z",
+  "direction": "outbound",
+  "from": "+14155551234",
+  "media_url": null,
+  "media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "num_pages": null,
+  "price": null,
+  "price_unit": null,
+  "quality": null,
+  "sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "status": "canceled",
+  "to": "+14155554321",
+  "duration": null,
+  "links": {
+    "media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
+  },
+  "url": "https://fax.twilio.com/v1/Faxes/FXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}`
+
 const errorResponseJSON = `{
 	"code": 1228,
 	"message": "Twilio error message",
@@ -222,6 +245,48 @@ func TestClient_do(t *testing.T) {
 
 		_, err = c.do(r)
 		assert.Error(err)
+	})
+}
+
+func TestClient_Cancel(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Run("OK", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(deleteResponseJSON))
+		}))
+		defer server.Close()
+
+		assert.NoError(c.Cancel(faxSID))
+	})
+
+	t.Run("ErrorResponse", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(errorResponseJSON))
+		}))
+		defer server.Close()
+
+		assert.Error(c.Cancel(faxSID))
+	})
+
+	t.Run("ErrNotAuthenticated", func(t *testing.T) {
+		currentSID := c.accountSID
+		currentToken := c.authToken
+
+		defer func() {
+			c.accountSID = currentSID
+			c.authToken = currentToken
+		}()
+
+		c.accountSID = ""
+		c.authToken = ""
+
+		assert.Equal(ErrNotAuthenticated, c.Cancel(faxSID))
+	})
+
+	t.Run("ErrMissingSID", func(t *testing.T) {
+		assert.Equal(ErrMissingSID, c.Cancel(""))
 	})
 }
 

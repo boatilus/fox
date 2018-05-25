@@ -47,6 +47,30 @@ func NewClient(accountSID, authToken string, sendOpts ...*SendOpts) *Client {
 	return &c
 }
 
+// Cancel updates a single fax instance by its SID with the "canceled" status. An error of the type
+// ErrorResponse is returned on any failure.
+func (c *Client) Cancel(sid string) error {
+	if c.accountSID == "" || c.authToken == "" {
+		return ErrNotAuthenticated
+	}
+	if sid == "" {
+		return ErrMissingSID
+	}
+
+	u := c.buildURL(sid)
+
+	data := url.Values{}
+	data.Add("Status", StatusCanceled.String())
+
+	r, err := http.NewRequest(http.MethodDelete, u.String(), strings.NewReader(data.Encode()))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.do(r)
+	return err
+}
+
 // Get retrieves the data for a single fax instance by its SID, or an error of the type
 // ErrorResponse.
 func (c *Client) Get(sid string) (*SendResponse, error) {
@@ -189,10 +213,11 @@ func (c *Client) do(r *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	// Twilio returns 201 CREATED for fax resources created succesfully via a POST request and 200 OK
-	// when retrieving resources via a GET request. All other status codes indicate an error, in which
-	// the response body is described by ErrorResponse.
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+	// Twilio returns 201 CREATED for fax resources created succesfully via a POST request, 200 OK
+	// when retrieving resources via a GET request and 204 NO CONTENT when updating resources via a
+	// DELETE request. All other status codes indicate an error, in which the response body is
+	// described by ErrorResponse.
+	if res.StatusCode >= 400 {
 		var errRes ErrorResponse
 		if err := json.Unmarshal(body, &errRes); err != nil {
 			return nil, err
