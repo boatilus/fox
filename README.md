@@ -1,4 +1,6 @@
 # fox
+[![Go Report Card](https://goreportcard.com/badge/github.com/boatilus/fox)](https://goreportcard.com/report/github.com/boatilus/fox) [![GoDoc](https://godoc.org/github.com/boatilus/fox?status.svg)](https://godoc.org/github.com/boatilus/fox)
+
 A simple, dependency-free Go client for the Twilio programmatic fax API.
 
 __fox__ seeks to implement all the functions associated with Twilio's "Faxes" endpoint, but to keep the library tight, does not facilitate, for example, E.164 phone number parsing and validation, or handling Twilio status callbacks.
