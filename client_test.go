@@ -72,6 +72,42 @@ const sendResponseJSON = `{
 	"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 }`
 
+const listResponseJSON = `{
+  "faxes": [
+    {
+      "account_sid": "AC1df9f0ed227e842a202a28a8f58b9d8f",
+      "api_version": "v1",
+      "date_created": "2015-07-30T20:00:00Z",
+      "date_updated": "2015-07-30T20:00:00Z",
+      "direction": "outbound",
+      "from": "+14155551234",
+      "media_url": "https://www.example.com/fax.pdf",
+      "media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "num_pages": null,
+      "price": null,
+      "price_unit": null,
+      "quality": null,
+      "sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "status": "queued",
+      "to": "+14155554321",
+      "duration": null,
+      "links": {
+        "media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
+      },
+      "url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    }
+  ],
+  "meta": {
+    "first_page_url": "https://fax.twilio.com/v1/Faxes?PageSize=50&Page=0",
+    "key": "faxes",
+    "next_page_url": null,
+    "page": 0,
+    "page_size": 50,
+    "previous_page_url": null,
+    "url": "https://fax.twilio.com/v1/Faxes?PageSize=50&Page=0"
+  }
+}`
+
 var to, from string
 
 var c *Client
@@ -240,6 +276,50 @@ func TestClient_Get(t *testing.T) {
 	t.Run("ErrMissingSID", func(t *testing.T) {
 		_, err := c.Get("")
 		assert.Equal(ErrMissingSID, err)
+	})
+}
+
+func TestClient_List(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Run("OK", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(listResponseJSON))
+		}))
+		defer server.Close()
+
+		got, err := c.List()
+
+		assert.NoError(err)
+		assert.Len(got.Faxes, 1)
+		assert.Equal(got.Meta.PageSize, 50)
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(errorResponseJSON))
+		}))
+		defer server.Close()
+
+		_, err := c.List()
+		assert.Error(err)
+	})
+
+	t.Run("ErrNotAuthenticated", func(t *testing.T) {
+		currentSID := c.accountSID
+		currentToken := c.authToken
+
+		defer func() {
+			c.accountSID = currentSID
+			c.authToken = currentToken
+		}()
+
+		c.accountSID = ""
+		c.authToken = ""
+
+		_, err := c.List()
+		assert.Equal(ErrNotAuthenticated, err)
 	})
 }
 

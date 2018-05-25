@@ -77,6 +77,41 @@ func (c *Client) Get(sid string) (*SendResponse, error) {
 	return &sr, nil
 }
 
+// List retrieves the faxes in the account. An optional pointer to a ListOpts object can be supplied
+// to set filtering options. List returns the response received from Twilio, or an error of the type
+// ErrorResponse.
+func (c *Client) List(opts ...*ListOpts) (*ListResponse, error) {
+	if c.accountSID == "" || c.authToken == "" {
+		return nil, ErrNotAuthenticated
+	}
+
+	u := c.buildURL("")
+
+	data := url.Values{}
+	if len(opts) > 0 {
+		opts[0].urlEncode(data)
+	}
+
+	r, err := http.NewRequest(http.MethodGet, u.String(), strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+
+	body, err := c.do(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var lr ListResponse
+	if err := json.Unmarshal(body, &lr); err != nil {
+		return nil, err
+	}
+
+	return &lr, nil
+}
+
 // Send initiates a fax to the specified number. The arguments for the to and from numbers are
 // expected to be in the E.164 format, and the media URL argument is expected to be a
 // fully-qualified, publicly-accessible URL. It returns the response received from Twilio, or

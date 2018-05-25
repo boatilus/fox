@@ -116,6 +116,38 @@ func (st statusType) String() string {
 	}
 }
 
+// ListOpts describes the options to use when listing faxes.
+type ListOpts struct {
+	// DateCreatedAfter filters the returned list to only include faxes created after the supplied
+	// date.
+	DateCreatedAfter time.Time
+	// DateCreatedOnOrBefore filters the returned list to only include faxes created on or before the
+	// supplied date.
+	DateCreatedOnOrBefore time.Time
+	// From filters the returned list to only include faxes sent from the supplied number, given in
+	// E.164 format.
+	From string
+	// To filters the returned list to only include faxes sent to the supplied number, given in E.164
+	// format.
+	To string
+}
+
+// urlEncode adds ListOpts fields to a url.Values map using standard param=value URL encoding.
+func (lo *ListOpts) urlEncode(data url.Values) {
+	if !lo.DateCreatedAfter.IsZero() {
+		data.Add("DateCreatedAfter", lo.DateCreatedAfter.Format(time.RFC3339))
+	}
+	if !lo.DateCreatedOnOrBefore.IsZero() {
+		data.Add("DateCreatedOnOrBefore", lo.DateCreatedOnOrBefore.Format(time.RFC3339))
+	}
+	if lo.From != "" {
+		data.Add("From", lo.From)
+	}
+	if lo.To != "" {
+		data.Add("To", lo.To)
+	}
+}
+
 // SendOpts describes the options to use when sending a fax.
 type SendOpts struct {
 	// Quality is a quality value, one of QualityStandard, QualityFine or QualitySuperfine.
@@ -178,6 +210,23 @@ type ErrorResponse struct {
 // Error satisfies the error interface.
 func (err *ErrorResponse) Error() string {
 	return fmt.Sprintf("fox: error %v (Twilio error %v): %s", err.Status, err.Code, err.Message)
+}
+
+// Meta describes the metadata object component of a ListResponse
+type Meta struct {
+	FirstPageURL    string `json:"first_page_url"`
+	Key             string `json:"key"`
+	NextPageURL     string `json:"next_page_url,omitempty"`
+	Page            int    `json:"page"`
+	PageSize        int    `json:"page_size"`
+	PreviousPageURL string `json:"previous_page_url,omitempty"`
+	URL             string `json:"url"`
+}
+
+// ListResponse describes the success response returned from listing faxes.
+type ListResponse struct {
+	Faxes []SendResponse `json:"faxes"`
+	Meta  Meta           `json:"meta"`
 }
 
 // SendResponse describes the success response returned from sending a fax.

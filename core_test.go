@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,30 @@ func TestErrorResponse_Error(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestSendOpts_URLEncode(t *testing.T) {
+func TestListOpts_urlEncode(t *testing.T) {
+	in := ListOpts{
+		DateCreatedAfter:      time.Now().Add(time.Hour * 4),
+		DateCreatedOnOrBefore: time.Now(),
+		From: from,
+		To:   to,
+	}
+
+	data := url.Values{}
+	in.urlEncode(data)
+
+	got := data.Encode()
+	want := fmt.Sprintf(
+		"DateCreatedAfter=%s&DateCreatedOnOrBefore=%s&From=%s&To=%s",
+		url.QueryEscape(in.DateCreatedAfter.Format(time.RFC3339)),
+		url.QueryEscape(in.DateCreatedOnOrBefore.Format(time.RFC3339)),
+		url.QueryEscape(from),
+		url.QueryEscape(to),
+	)
+
+	assert.Equal(t, want, got)
+}
+
+func TestSendOpts_urlEncode(t *testing.T) {
 	in := SendOpts{
 		Quality:         QualitySuperfine,
 		SIPAuthPassword: "password",
