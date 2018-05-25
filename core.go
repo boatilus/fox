@@ -1,6 +1,6 @@
-// Package fox implements a simple wrapper for the Twilio programmatic fax API. It implements all
+// Package fox implements a simple client for the Twilio programmatic fax API. It implements all
 // the functions associated with the "Faxes" endpoint, but to keep the library tight, does not
-// faciliate, for example, E.164 phone number parsing and validation, or handling Twilio status
+// facilitate, for example, E.164 phone number parsing and validation, or handling Twilio status
 // callbacks.
 //
 // To get started, construct a new Client with your Twilio account SID and auth token:
@@ -71,7 +71,7 @@ const (
 	StatusProcessing
 	// StatusSending indicates that the fax is in the process of being sent.
 	StatusSending
-	// StatusDelivered indicates that he fax has been successfuly delivered.
+	// StatusDelivered indicates that he fax has been successfully delivered.
 	StatusDelivered
 	// StatusReceiving indicates that the fax is in the process of being received.
 	StatusReceiving

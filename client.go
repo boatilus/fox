@@ -234,7 +234,7 @@ func (c *Client) do(r *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	// Twilio returns 201 CREATED for fax resources created succesfully via a POST request, 200 OK
+	// Twilio returns 201 CREATED for fax resources created successfully via a POST request, 200 OK
 	// when retrieving resources via a GET request and 204 NO CONTENT when updating resources via a
 	// DELETE request. All other status codes indicate an error, in which the response body is
 	// described by ErrorResponse.
