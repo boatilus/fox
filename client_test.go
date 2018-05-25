@@ -290,6 +290,49 @@ func TestClient_Cancel(t *testing.T) {
 	})
 }
 
+func TestClient_Delete(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Run("OK", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+			w.Write([]byte("ANY"))
+		}))
+		defer server.Close()
+
+		assert.NoError(c.Delete(faxSID))
+	})
+
+	t.Run("ErrorResponse", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(errorResponseJSON))
+		}))
+		defer server.Close()
+
+		assert.Error(c.Delete(faxSID))
+	})
+
+	t.Run("ErrNotAuthenticated", func(t *testing.T) {
+		currentSID := c.accountSID
+		currentToken := c.authToken
+
+		defer func() {
+			c.accountSID = currentSID
+			c.authToken = currentToken
+		}()
+
+		c.accountSID = ""
+		c.authToken = ""
+
+		assert.Equal(ErrNotAuthenticated, c.Delete(faxSID))
+	})
+
+	t.Run("ErrMissingSID", func(t *testing.T) {
+		assert.Equal(ErrMissingSID, c.Delete(""))
+	})
+}
+
 func TestClient_Get(t *testing.T) {
 	assert := assert.New(t)
 

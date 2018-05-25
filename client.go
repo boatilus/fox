@@ -62,7 +62,28 @@ func (c *Client) Cancel(sid string) error {
 	data := url.Values{}
 	data.Add("Status", StatusCanceled.String())
 
-	r, err := http.NewRequest(http.MethodDelete, u.String(), strings.NewReader(data.Encode()))
+	r, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.do(r)
+	return err
+}
+
+// Delete removes a single fax instance by its SID any associated fax media instance. An error of
+// the type ErrorResponse is returned on any failure.
+func (c *Client) Delete(sid string) error {
+	if c.accountSID == "" || c.authToken == "" {
+		return ErrNotAuthenticated
+	}
+	if sid == "" {
+		return ErrMissingSID
+	}
+
+	u := c.buildURL(sid)
+
+	r, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return err
 	}
