@@ -1,5 +1,5 @@
 # fox
-A simple, dependency-free Go wrapper for the Twilio programmatic fax API.
+A simple, dependency-free Go client for the Twilio programmatic fax API.
 
 __fox__ seeks to implement all the functions associated with Twilio's "Faxes" endpoint, but to keep the library tight, does not faciliate, for example, E.164 phone number parsing and validation, or handling Twilio status callbacks.
 
@@ -19,7 +19,11 @@ c := fox.NewClient("YOUR_TWILIO_ACCOUNT_SID", "YOUR_TWILIO_AUTH_TOKEN", &opts)
 ```
 
 The `Get`, `List` and `Send` methods on the returned `Client` are used to make the API calls as described
-by Twilio's API reference.
+by Twilio's API reference. For example, to retrieve a fax's data by its SID:
+
+```go
+res, _ := c.Get("FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+```
 
 ## Implementation status
 - ✅ Get a fax by its SID
