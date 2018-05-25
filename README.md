@@ -1,7 +1,7 @@
 # fox
 A simple, dependency-free Go client for the Twilio programmatic fax API.
 
-__fox__ seeks to implement all the functions associated with Twilio's "Faxes" endpoint, but to keep the library tight, does not faciliate, for example, E.164 phone number parsing and validation, or handling Twilio status callbacks.
+__fox__ seeks to implement all the functions associated with Twilio's "Faxes" endpoint, but to keep the library tight, does not facilitate, for example, E.164 phone number parsing and validation, or handling Twilio status callbacks.
 
 ## Getting started
 To get started, construct a new `Client` with your Twilio account SID and auth token:
@@ -34,9 +34,9 @@ res, _ := c.Get("FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 - ❌ Create a new fax resource
 
 ## Running tests
-First, grab the assert library:
+First, grab the [testify](https://github.com/stretchr/testify) package:
 
-    go get -u github.com/stretchr/testify/assert
+    go get -u github.com/stretchr/testify
   
 Then, run the tests (the `-v` flag specifies verbose output):
 
