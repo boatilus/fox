@@ -1,4 +1,20 @@
-// Package fox implements a wrapper around the Twilio fax API.
+// Package fox implements a simple wrapper for the Twilio programmatic fax API. It implements all
+// the functions associated with the "Faxes" endpoint, but to keep the library tight, does not
+// faciliate, for example, E.164 phone number parsing and validation, or handling Twilio status
+// callbacks.
+//
+// To get started, construct a new Client with your Twilio account SID and auth token:
+//
+// 		c := fox.NewClient("YOUR_TWILIO_ACCOUNT_SID", "YOUR_TWILIO_AUTH_TOKEN")
+//
+// Optionally, you can also pass a pointer to a SendOptions object to NewClient to specify custom
+// send options (to, for example, tell Twilio *not* to store fax media):
+//
+//   opts := SendOpts{StoreMedia: false}
+//   c := fox.NewClient("YOUR_TWILIO_ACCOUNT_SID", "YOUR_TWILIO_AUTH_TOKEN", &opts)
+//
+// The Get, List and Send methods on the returned Client are used to make the API calls as described
+// by Twilio's API reference.
 package fox
 
 import (

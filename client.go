@@ -11,28 +11,28 @@ import (
 )
 
 // DefaultTimeoutDuration is the default length of time for a Client to wait for an HTTP request to
-// finish before timing out.
+// complete before timing out.
 const DefaultTimeoutDuration = 10 * time.Second
-
-// TimeoutDuration is the length of time for a Client to wait for an HTTP request to finish before
-// timing out.
-var TimeoutDuration = DefaultTimeoutDuration
 
 // Client describes an encapsulation of an HTTP client, send options and Twilio credentials.
 type Client struct {
-	HTTPClient *http.Client
-	SendOpts   *SendOpts
-	accountSID string
-	authToken  string
+	HTTPClient      *http.Client
+	TimeoutDuration time.Duration
+	SendOpts        *SendOpts
+	accountSID      string
+	authToken       string
 }
 
 // NewClient constructs a new Client given a Twilio account SID, auth token and an optional
 // pointer to a SendOpts object. If no argument is supplied for sendOpts, the default send options
 // are used.
+//
+// By default, the HTTP client sets its request timeout duration to DefaultTimeDuration. To
+// override, assign a new time.Duration value to HTTPClient.Timeout.
 func NewClient(accountSID, authToken string, sendOpts ...*SendOpts) *Client {
 	c := Client{
 		HTTPClient: &http.Client{
-			Timeout: TimeoutDuration,
+			Timeout: DefaultTimeoutDuration,
 		},
 		accountSID: accountSID,
 		authToken:  authToken,
@@ -77,11 +77,22 @@ func (c *Client) Get(sid string) (*SendResponse, error) {
 	return &sr, nil
 }
 
-// Send initiates a fax to the specified number. It returns the response received from Twilio, or
+// Send initiates a fax to the specified number. The arguments for the to and from numbers are
+// expected to be in the E.164 format, and the media URL argument is expected to be a
+// fully-qualified, publicly-accessible URL. It returns the response received from Twilio, or
 // an error of the type ErrorResponse.
 func (c *Client) Send(to, from, mediaURL string, sendOpts ...*SendOpts) (*SendResponse, error) {
 	if c.accountSID == "" || c.authToken == "" {
 		return nil, ErrNotAuthenticated
+	}
+	if to == "" {
+		return nil, ErrMissingToNumber
+	}
+	if from == "" {
+		return nil, ErrMissingFromNumber
+	}
+	if mediaURL == "" {
+		return nil, ErrMissingMediaURL
 	}
 
 	var opts *SendOpts

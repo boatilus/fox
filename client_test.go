@@ -26,13 +26,66 @@ const errorResponseJSON = `{
 	"status": 404
 }`
 
+const getResponseJSON = `{
+	"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"api_version": "v1",
+	"date_created": "2015-07-30T20:00:00Z",
+	"date_updated": "2015-07-30T20:00:00Z",
+	"direction": "outbound",
+	"from": "+15017122661",
+	"media_url": "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf",
+	"media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"num_pages": null,
+	"price": null,
+	"price_unit": null,
+	"quality": "fine",
+	"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"status": "delivered",
+	"to": "+15558675310",
+	"duration": null,
+	"links": {
+		"media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
+	},
+	"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}`
+
+const sendResponseJSON = `{
+	"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"api_version": "v1",
+	"date_created": "2015-07-30T20:00:00Z",
+	"date_updated": "2015-07-30T20:00:00Z",
+	"direction": "outbound",
+	"from": "+15017122661",
+	"media_url": "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf",
+	"media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"num_pages": null,
+	"price": null,
+	"price_unit": null,
+	"quality": "fine",
+	"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+	"status": "queued",
+	"to": "+15558675310",
+	"duration": null,
+	"links": {
+		"media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
+	},
+	"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}`
+
 var to, from string
 
 var c *Client
 
 func init() {
 	to = os.Getenv("TO")
+	if to == "" {
+		to = "+15558675310"
+	}
+
 	from = os.Getenv("FROM")
+	if from == "" {
+		from = "+15017122661"
+	}
 
 	envSID := os.Getenv("ACCOUNT_SID")
 	envToken := os.Getenv("AUTH_TOKEN")
@@ -111,7 +164,7 @@ func TestClient_do(t *testing.T) {
 		}))
 		defer server.Close()
 
-		r, err := http.NewRequest(http.MethodGet, server.URL+"/get-success", nil)
+		r, err := http.NewRequest(http.MethodGet, server.URL, nil)
 		if err != nil {
 			t.Error(err)
 			t.FailNow()
@@ -129,7 +182,7 @@ func TestClient_do(t *testing.T) {
 		}))
 		defer server.Close()
 
-		r, err := http.NewRequest(http.MethodGet, server.URL+"/get-error", nil)
+		r, err := http.NewRequest(http.MethodGet, server.URL, nil)
 
 		_, err = c.do(r)
 		assert.Error(err)
@@ -141,28 +194,7 @@ func TestClient_Get(t *testing.T) {
 
 	t.Run("OK", func(t *testing.T) {
 		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Write([]byte(`{
-				"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"api_version": "v1",
-				"date_created": "2015-07-30T20:00:00Z",
-				"date_updated": "2015-07-30T20:00:00Z",
-				"direction": "outbound",
-				"from": "+15017122661",
-				"media_url": "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf",
-				"media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"num_pages": null,
-				"price": null,
-				"price_unit": null,
-				"quality": "fine",
-				"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"status": "delivered",
-				"to": "+15558675310",
-				"duration": null,
-				"links": {
-					"media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
-				},
-				"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-			}`))
+			w.Write([]byte(getResponseJSON))
 		}))
 		defer server.Close()
 
@@ -178,7 +210,7 @@ func TestClient_Get(t *testing.T) {
 		assert.Equal("fine", got.Quality)
 	})
 
-	t.Run("Error", func(t *testing.T) {
+	t.Run("ErrorResponse", func(t *testing.T) {
 		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(errorResponseJSON))
@@ -188,6 +220,27 @@ func TestClient_Get(t *testing.T) {
 		_, err := c.Get(faxSID)
 		assert.Error(err)
 	})
+
+	t.Run("ErrNotAuthenticated", func(t *testing.T) {
+		currentSID := c.accountSID
+		currentToken := c.authToken
+
+		defer func() {
+			c.accountSID = currentSID
+			c.authToken = currentToken
+		}()
+
+		c.accountSID = ""
+		c.authToken = ""
+
+		_, err := c.Get(faxSID)
+		assert.Equal(ErrNotAuthenticated, err)
+	})
+
+	t.Run("ErrMissingSID", func(t *testing.T) {
+		_, err := c.Get("")
+		assert.Equal(ErrMissingSID, err)
+	})
 }
 
 func TestClient_Send(t *testing.T) {
@@ -195,38 +248,55 @@ func TestClient_Send(t *testing.T) {
 
 	t.Run("OK", func(t *testing.T) {
 		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Write([]byte(`{
-				"account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"api_version": "v1",
-				"date_created": "2015-07-30T20:00:00Z",
-				"date_updated": "2015-07-30T20:00:00Z",
-				"direction": "outbound",
-				"from": "+15017122661",
-				"media_url": "https://www.twilio.com/docs/documents/25/justthefaxmaam.pdf",
-				"media_sid": "MEXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"num_pages": null,
-				"price": null,
-				"price_unit": null,
-				"quality": "fine",
-				"sid": "FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-				"status": "queued",
-				"to": "+15558675310",
-				"duration": null,
-				"links": {
-					"media": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media"
-				},
-				"url": "https://fax.twilio.com/v1/Faxes/FXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-			}`))
+			w.Write([]byte(sendResponseJSON))
 		}))
 		defer server.Close()
 
-		got, err := c.Send(
-			to,
-			from,
-			"http://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf",
-		)
+		got, err := c.Send(to, from, faxMediaURL)
 
 		assert.NoError(err)
 		assert.Equal(got.Status, "queued")
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		server := makeServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(errorResponseJSON))
+		}))
+		defer server.Close()
+
+		_, err := c.Send(to, from, faxMediaURL)
+		assert.Error(err)
+	})
+
+	t.Run("ErrNotAuthenticated", func(t *testing.T) {
+		currentSID := c.accountSID
+		currentToken := c.authToken
+
+		defer func() {
+			c.accountSID = currentSID
+			c.authToken = currentToken
+		}()
+
+		c.accountSID = ""
+		c.authToken = ""
+
+		_, err := c.Send(to, from, faxMediaURL)
+		assert.Equal(ErrNotAuthenticated, err)
+	})
+
+	t.Run("ErrMissingToNumber", func(t *testing.T) {
+		_, err := c.Send("", from, faxMediaURL)
+		assert.Equal(ErrMissingToNumber, err)
+	})
+
+	t.Run("ErrMissingFromNumber", func(t *testing.T) {
+		_, err := c.Send(to, "", faxMediaURL)
+		assert.Equal(ErrMissingFromNumber, err)
+	})
+
+	t.Run("ErrMissingMediaURL", func(t *testing.T) {
+		_, err := c.Send(to, from, "")
+		assert.Equal(ErrMissingMediaURL, err)
 	})
 }
